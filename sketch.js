@@ -51,13 +51,13 @@ async function tmLoop() {
 const S = 16; // pixel block size
 
 const HEAD_MAP = [
-  [0,1,1,1,1,1,1,0],
+  [0,1,0,0,0,0,1,0],
+  [1,2,1,0,0,1,2,1],
   [1,1,1,1,1,1,1,1],
-  [1,1,3,3,1,3,3,1],
-  [1,1,3,3,1,3,3,1],
+  [1,1,2,3,1,3,2,1],
   [1,1,1,1,1,1,1,1],
-  [1,1,1,3,3,3,1,1],
-  [1,1,3,3,3,3,1,1],
+  [1,3,1,1,3,1,3,1],
+  [1,1,3,3,1,3,1,1],
   [0,1,1,1,1,1,1,0],
 ];
 
@@ -92,8 +92,8 @@ let gestureHold = 0;
 let statusText = "Show 👍 or 👎";
 
 function getColor(v) {
-  if (v === 1) return color(50, 168, 82);
-  if (v === 2) return color(30, 130, 50);
+  if (v === 1) return color(253, 245, 226);
+  if (v === 2) return color(157, 109, 80);
   if (v === 3) return color(0, 0, 0);
   return null;
 }
@@ -150,13 +150,13 @@ function setup() {
 }
 
 function draw() {
-  background(26, 26, 46);
+  background(87, 70, 45);
 
   // Ground
   noStroke();
-  fill(20, 100, 40);
+  fill(" red");
   rect(0, 360, width, 60);
-  fill(15, 80, 30);
+  fill(139, 0, 0);
   rect(0, 360, width, 8);
 
   // ── Gesture → state transitions ──
