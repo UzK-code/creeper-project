@@ -9,11 +9,11 @@
 //  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 // ============================================================
 
-const MODEL_URL = "https://teachablemachine.withgoogle.com/models/3jPA4XLvp/";
+const MODEL_URL = "https://teachablemachine.withgoogle.com/models/8C4XrqJVT/";
 
 // ─── Teachable Machine State ────────────────────────────────
 let tmModel, tmWebcam;
-let currentGesture = "none"; // "thumbsup" | "thumbsdown" | "none"
+let currentGesture = "none"; // "smile" | "frown" | "none"
 let labelText = "Loading model...";
 
 async function initTM() {
@@ -34,10 +34,10 @@ async function tmLoop() {
   labelText = `${best.className}  ${(conf * 100).toFixed(0)}%`;
 
   if (conf > 0.75) {
-    if (label.includes("thumbs up") || label.includes("thumb up")) {
-      currentGesture = "thumbsup";
-    } else if (label.includes("thumbs down") || label.includes("thumb down")) {
-      currentGesture = "thumbsdown";
+    if (label.includes("smile") || label.includes("smiling")) {
+      currentGesture = "smile";
+    } else if (label.includes("frown") || label.includes("frowning")) {
+      currentGesture = "frown";
     } else {
       currentGesture = "none";
     }
@@ -164,14 +164,14 @@ function draw() {
   if (g !== lastGesture) { gestureHold = 0; lastGesture = g; }
   else gestureHold++;
 
-  if (g === "thumbsdown" && gestureHold > 20 && state !== STATES.EXPLODE) {
+  if (g === "frown" && gestureHold > 20 && state !== STATES.EXPLODE) {
     state = STATES.EXPLODE;
     buildPieces(cx, cy);
     scatterPieces();
     statusText = "💥 BOOM!";
   }
 
-  if (g === "thumbsup" && gestureHold > 20 && state !== STATES.WALK && state !== STATES.REFORM) {
+  if (g === "smile" && gestureHold > 20 && state !== STATES.WALK && state !== STATES.REFORM) {
     state = STATES.REFORM;
     reformTimer = 0;
     // Scatter pieces to random locations so they fly IN
