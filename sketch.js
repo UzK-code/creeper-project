@@ -58,17 +58,18 @@ let statusText = "Show 👍 or 👎";
 
 // ─── Load your uploaded image here ──────────────────────────
 function preload() {
-  spriteImg = loadImage("cat.png");
+  spriteImg = loadImage("cat.png",);
 }
+   
 
 
-// ─── Build pieces from image pixels ─────────────────────────
+
 function buildPieces(x, y) {
   pieces = [];
 
   // Resize image to a manageable grid
-  let w = 32;
-  let h = 32;
+  let w = 200;
+  let h = 200;
   spriteImg.resize(w, h);
   spriteImg.loadPixels();
 
