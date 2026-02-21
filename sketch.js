@@ -1,19 +1,14 @@
 // ============================================================
-//  CREEPER MACHINE — P5.js + Teachable Machine
-//  Drop this sketch.js into a p5 project folder with index.html
-//  that loads p5, tfjs, and teachablemachine-image.
-//
-//  index.html needs these scripts BEFORE sketch.js:
-//  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-//  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-//  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+//  CREEPER MACHINE — IMAGE-BASED VERSION
 // ============================================================
 
-const MODEL_URL = "https://teachablemachine.withgoogle.com/models/8C4XrqJVT/";
+const MODEL_URL = 
+    
+  "https://teachablemachine.withgoogle.com/models/8C4XrqJVT/";
 
 // ─── Teachable Machine State ────────────────────────────────
 let tmModel, tmWebcam;
-let currentGesture = "none"; // "smile" | "frown" | "none"
+let currentGesture = "none";
 let labelText = "Loading model...";
 
 async function initTM() {
@@ -34,89 +29,75 @@ async function tmLoop() {
   labelText = `${best.className}  ${(conf * 100).toFixed(0)}%`;
 
   if (conf > 0.75) {
-    if (label.includes("smile") || label.includes("smiling")) {
-      currentGesture = "smile";
-    } else if (label.includes("frown") || label.includes("frowning")) {
-      currentGesture = "frown";
-    } else {
-      currentGesture = "none";
-    }
+    if (label.includes("smile")) currentGesture = "smile";
+    else if (label.includes("frown")) currentGesture = "frown";
+    else currentGesture = "none";
   } else {
     currentGesture = "none";
   }
+
   requestAnimationFrame(tmLoop);
 }
 
-// ─── Creeper Setup ──────────────────────────────────────────
-const S = 16; // pixel block size
+// ─── Image Sprite Setup ─────────────────────────────────────
+let spriteImg;
+const S = 16; // block size
+let pieces = [];
+let cx = 220, cy = 280;
 
-const HEAD_MAP = [
-  [0,1,0,0,0,0,1,0],
-  [1,2,1,0,0,1,2,1],
-  [1,1,1,1,1,1,1,1],
-  [1,1,2,3,1,3,2,1],
-  [1,1,1,1,1,1,1,1],
-  [1,3,1,1,3,1,3,1],
-  [1,1,3,3,1,3,1,1],
-  [0,1,1,1,1,1,1,0],
-];
-
-const BODY_MAP = [
-  [0,0,1,1,1,1,0,0],
-  [0,1,1,2,2,1,1,0],
-  [0,1,2,2,2,2,1,0],
-  [0,1,2,2,2,2,1,0],
-  [0,0,1,1,1,1,0,0],
-  [0,1,1,0,0,1,1,0],
-  [1,1,0,0,0,0,1,1],
-  [1,1,0,0,0,0,1,1],
-];
-
-const FULL_MAP = [...HEAD_MAP, ...BODY_MAP];
-
-// Creeper state machine
+// Explosion state machine
 const STATES = { IDLE: 0, WALK: 1, EXPLODE: 2, REFORM: 3 };
 let state = STATES.IDLE;
-
-// Walk
-let cx = 220, cy = 280;
 let walkDir = 1;
-
-// Pieces for explosion/reform
-let pieces = [];
 let reformTimer = 0;
 
-// Gesture hold counter
+// Gesture tracking
 let lastGesture = "none";
 let gestureHold = 0;
 let statusText = "Show 👍 or 👎";
 
-function getColor(v) {
-  if (v === 1) return color(253, 245, 226);
-  if (v === 2) return color(157, 109, 80);
-  if (v === 3) return color(0, 0, 0);
-  return null;
+// ─── Load your uploaded image here ──────────────────────────
+function preload() {
+  spriteImg = loadImage("cat.png");
 }
 
+
+// ─── Build pieces from image pixels ─────────────────────────
 function buildPieces(x, y) {
   pieces = [];
-  for (let r = 0; r < FULL_MAP.length; r++) {
-    for (let c = 0; c < 8; c++) {
-      const v = FULL_MAP[r][c];
-      if (v === 0) continue;
+
+  // Resize image to a manageable grid
+  let w = 32;
+  let h = 32;
+  spriteImg.resize(w, h);
+  spriteImg.loadPixels();
+
+  for (let r = 0; r < h; r++) {
+    for (let c = 0; c < w; c++) {
+      let idx = (r * w + c) * 4;
+      let rCol = spriteImg.pixels[idx];
+      let gCol = spriteImg.pixels[idx + 1];
+      let bCol = spriteImg.pixels[idx + 2];
+      let aCol = spriteImg.pixels[idx + 3];
+
+      if (aCol < 10) continue; // skip transparent pixels
+
+      let col = color(rCol, gCol, bCol, aCol);
+
       pieces.push({
-        tx: x - 4 * S + c * S,   // target x
-        ty: y - 8 * S + r * S,   // target y
-        px: x - 4 * S + c * S,   // current x
-        py: y - 8 * S + r * S,   // current y
+        tx: x - (w / 2) * S + c * S,
+        ty: y - (h / 2) * S + r * S,
+        px: x - (w / 2) * S + c * S,
+        py: y - (h / 2) * S + r * S,
         vx: 0,
         vy: 0,
-        v: v,
+        col: col
       });
     }
   }
 }
 
+// ─── Scatter pieces for explosion ───────────────────────────
 function scatterPieces() {
   for (const pc of pieces) {
     pc.vx = random(-13, 13);
@@ -124,24 +105,16 @@ function scatterPieces() {
   }
 }
 
-function drawCreeper(x, y, alpha) {
+// ─── Draw the full sprite image ─────────────────────────────
+function drawCreeper(x, y, alpha = 255) {
   push();
-  noStroke();
-  translate(x - 4 * S, y - 8 * S);
-  for (let r = 0; r < FULL_MAP.length; r++) {
-    for (let c = 0; c < 8; c++) {
-      const v = FULL_MAP[r][c];
-      if (v === 0) continue;
-      const col = getColor(v);
-      col.setAlpha(alpha !== undefined ? alpha : 255);
-      fill(col);
-      rect(c * S, r * S, S, S);
-    }
-  }
+  imageMode(CENTER);
+  tint(255, alpha);
+  image(spriteImg, x, y);
   pop();
 }
 
-// ─── P5 Core ────────────────────────────────────────────────
+// ─── P5 Setup ───────────────────────────────────────────────
 function setup() {
   createCanvas(440, 420);
   pixelDensity(1);
@@ -149,17 +122,18 @@ function setup() {
   initTM().catch(e => { labelText = "Webcam error: " + e.message; });
 }
 
+// ─── Main Draw Loop ─────────────────────────────────────────
 function draw() {
   background(87, 70, 45);
 
   // Ground
   noStroke();
-  fill(" red");
+  fill("red");
   rect(0, 360, width, 60);
   fill(139, 0, 0);
   rect(0, 360, width, 8);
 
-  // ── Gesture → state transitions ──
+  // Gesture → state transitions
   const g = currentGesture;
   if (g !== lastGesture) { gestureHold = 0; lastGesture = g; }
   else gestureHold++;
@@ -174,7 +148,6 @@ function draw() {
   if (g === "smile" && gestureHold > 20 && state !== STATES.WALK && state !== STATES.REFORM) {
     state = STATES.REFORM;
     reformTimer = 0;
-    // Scatter pieces to random locations so they fly IN
     for (const pc of pieces) {
       pc.px = random(0, width);
       pc.py = random(0, height);
@@ -182,45 +155,37 @@ function draw() {
     statusText = "✨ REFORMING...";
   }
 
-  // ── IDLE ──
+  // IDLE
   if (state === STATES.IDLE) {
     drawCreeper(cx, cy);
   }
 
-  // ── WALK ──
+  // WALK
   if (state === STATES.WALK) {
     cx += walkDir * 1.5;
     if (cx > 410) walkDir = -1;
-    if (cx < 30)  walkDir =  1;
+    if (cx < 30) walkDir = 1;
     const bob = sin(frameCount * 0.15) * 4;
     push(); translate(0, bob); drawCreeper(cx, cy); pop();
     statusText = "👍 Walking!";
   }
 
-  // ── EXPLODE ──
+  // EXPLODE
   if (state === STATES.EXPLODE) {
     for (const pc of pieces) {
-      pc.vy += 0.55; // gravity
+      pc.vy += 0.55;
       pc.px += pc.vx;
       pc.py += pc.vy;
+
       if (pc.py > 352) { pc.py = 352; pc.vy *= -0.3; pc.vx *= 0.8; }
       if (pc.px < 0 || pc.px > width - S) pc.vx *= -0.6;
-      const col = getColor(pc.v);
-      noStroke();
-      fill(col);
-      rect(pc.px, pc.py, S, S);
-    }
 
-    // Orange flash ring
-    if (frameCount % 6 < 3) {
-      noFill();
-      stroke(255, 160, 0, 80);
-      strokeWeight(6);
-      ellipse(cx, cy - 4 * S, 160 + sin(frameCount * 0.5) * 20, 160);
+      fill(pc.col);
+      rect(pc.px, pc.py, S, S);
     }
   }
 
-  // ── REFORM ──
+  // REFORM
   if (state === STATES.REFORM) {
     reformTimer++;
     const t = constrain(reformTimer / 90, 0, 1);
@@ -230,19 +195,11 @@ function draw() {
       pc.px = lerp(pc.px, pc.tx, 0.07);
       pc.py = lerp(pc.py, pc.ty, 0.07);
       if (dist(pc.px, pc.py, pc.tx, pc.ty) > 2) done = false;
-      const col = getColor(pc.v);
-      col.setAlpha(map(t, 0, 1, 60, 255));
-      noStroke();
-      fill(col);
-      rect(pc.px, pc.py, S, S);
-    }
 
-    // Sparkle particles on reform
-    if (random() < 0.4) {
-      const rp = random(pieces);
-      noStroke();
-      fill(255, 255, 100, 180);
-      ellipse(rp.px + S/2, rp.py + S/2, 6, 6);
+      let c = pc.col;
+      c.setAlpha(map(t, 0, 1, 60, 255));
+      fill(c);
+      rect(pc.px, pc.py, S, S);
     }
 
     if (done) {
@@ -251,23 +208,21 @@ function draw() {
     }
   }
 
-  // ── Webcam thumbnail ──
+  // Webcam thumbnail
   if (tmWebcam && tmWebcam.canvas) {
-    // Border using p5
     noStroke();
     fill(0, 255, 136, 40);
     rect(width - 214, 6, 208, 162, 4);
-    // Draw raw HTML canvas directly via 2D context
     drawingContext.drawImage(tmWebcam.canvas, width - 212, 8, 204, 158);
   }
 
-  // ── Pixel grid overlay ──
+  // Pixel grid
   stroke(255, 255, 255, 6);
   strokeWeight(0.5);
-  for (let x = 0; x < width; x += S)  line(x, 0, x, height);
+  for (let x = 0; x < width; x += S) line(x, 0, x, height);
   for (let y = 0; y < height; y += S) line(0, y, width, y);
 
-  // ── HUD ──
+  // HUD
   noStroke();
   fill(0, 255, 136);
   textFont('Courier New');
